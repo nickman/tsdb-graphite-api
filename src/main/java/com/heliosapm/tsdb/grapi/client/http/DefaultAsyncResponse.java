@@ -18,14 +18,17 @@ under the License.
  */
 package com.heliosapm.tsdb.grapi.client.http;
 
+import java.io.OutputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferOutputStream;
 
 /**
  * <p>Title: DefaultAsyncResponse</p>
@@ -35,9 +38,10 @@ import org.jboss.netty.buffer.ChannelBuffer;
  * <p><code>com.heliosapm.tsdb.grapi.client.http.DefaultAsyncResponse</code></p>
  */
 
-public class DefaultAsyncResponse implements AsyncResponse {
+public class DefaultAsyncResponse implements AsyncResponse, Runnable {
 	/** The response buffer, set by the http clientwhen the request is initiated */
 	protected final ChannelBuffer buffer;
+
 	/** The response headers */
 	protected Map<String, Collection<String>> headers = null;
 	/** The respponse HTTP code */
@@ -49,15 +53,20 @@ public class DefaultAsyncResponse implements AsyncResponse {
 	/** The original request URL */
 	protected URL requestURL = null;
 	/** The response handler */
-	protected final AtomicReference<DefaultAsyncResponseHandler> handler = new AtomicReference<DefaultAsyncResponseHandler>(null);
+	protected final AtomicReference<AsyncResponseHandler> handler = new AtomicReference<AsyncResponseHandler>(null);
 	/** The compoletion flag */
 	protected final AtomicBoolean complete = new AtomicBoolean(false);
+	/** The response handler invocation executor */
+	protected final ExecutorService executor; 
 	
 	/**
 	 * Creates a new DefaultAsyncResponse
+	 * @param cb The buffer that will hold the response
+	 * @param executor The response handler invocation executor
 	 */
-	public DefaultAsyncResponse(final ChannelBuffer cb) {
+	DefaultAsyncResponse(final ChannelBuffer cb, final ExecutorService executor) {
 		this.buffer = cb;
+		this.executor = executor;
 	}
 	
 	
@@ -66,7 +75,7 @@ public class DefaultAsyncResponse implements AsyncResponse {
 	 * @param handler The handler that will execute the response
 	 * @return this response
 	 */
-	public DefaultAsyncResponse handler(final DefaultAsyncResponseHandler handler) {
+	public DefaultAsyncResponse handler(final AsyncResponseHandler handler) {
 		if(handler!=null) {
 			if(this.handler.compareAndSet(null, handler)) {
 				if(complete.get()) {
@@ -118,11 +127,20 @@ public class DefaultAsyncResponse implements AsyncResponse {
 
 	/**
 	 * {@inheritDoc}
-	 * @see com.heliosapm.tsdb.grapi.client.http.AsyncResponse#onContent(org.jboss.netty.buffer.ChannelBuffer)
+	 * @see com.heliosapm.tsdb.grapi.client.http.AsyncResponse#onContent(java.nio.ByteBuffer)
 	 */
 	@Override
 	public void onContent(final ByteBuffer buffer) {
 		this.buffer.writeBytes(buffer);
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see java.lang.Runnable#run()
+	 */
+	@Override
+	public void run() {
+		handler.get().onResponse(this);		
 	}
 
 	/**
@@ -133,11 +151,26 @@ public class DefaultAsyncResponse implements AsyncResponse {
 	public void onComplete() {
 		if(complete.compareAndSet(false, true)) {
 			if(handler.get()!=null) {
-				handler.get().onResponse(this);
+				executor.execute(this);				
 			}			
 		}
 	}
 	
+	/**
+	 * Returns the response buffer
+	 * @return the buffer
+	 */
+	public ChannelBuffer getBuffer() {
+		return buffer;
+	}
+	
+	/**
+	 * Returns an outputstream that the response can be read from
+	 * @return an outputstream that the response can be read from
+	 */
+	public OutputStream getResponse() {
+		return new ChannelBufferOutputStream(buffer);
+	}
 	
 
 }

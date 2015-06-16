@@ -73,7 +73,8 @@ public class HttpClient {
 	/** The buffer factory for handling async responses */
 	protected DynamicByteBufferBackedChannelBufferFactory bufferFactory = new DynamicByteBufferBackedChannelBufferFactory(1024, .5f);
 	
-	public static final ObjectName THREADPOOL_OBJECTNAME = JMXHelper.objectName("");
+	/** The ObjectName of the Async HTTP Client thread pool */
+	public static final ObjectName THREADPOOL_OBJECTNAME = JMXHelper.objectName("com.heliosapm.tsdb.grapi:service=AsyncHttpClientThreadPool");
 	
 	/**
 	 * Acquires the HttpClient singleton instance
@@ -97,7 +98,9 @@ public class HttpClient {
 	 */
 	private HttpClient() {
 		log.info("Building HTTP Client...");
-		threadPool = new JMXManagedThreadPool(THREADPOOL_OBJECTNAME, "GraphiteAPIThreadPool", 10, 20, 240, 60000, 100, 99);
+		int cores = Runtime.getRuntime().availableProcessors();
+		threadPool = new JMXManagedThreadPool(THREADPOOL_OBJECTNAME, "GraphiteAPIThreadPool", cores*2, cores*4, 240, 60000, 100, 99);
+		threadPool.prestartAllCoreThreads();
 		AsyncHttpClientConfig.Builder builder = new AsyncHttpClientConfig.Builder()		
 		.setAllowPoolingConnection(true)
 		.setIOThreadMultiplier(1)
@@ -128,18 +131,31 @@ public class HttpClient {
 	
 	/**
 	 * Returns a new request builder
-	 * @return
+	 * @return a new request builder
 	 */
-	public RequestBuilder request() {
-		return new RequestBuilder();
+	public FluentRequestBuilder request() {
+		return new FluentRequestBuilder(this);
 	}
 	
-	public DefaultAsyncResponse execRequest(final RequestBuilder builder, final DefaultAsyncResponseHandler handler) {
-		return execRequest(builder.build(), handler);
+	/**
+	 * Returns a new request builder
+	 * @param responseHandler The async response handler
+	 * @return a new request builder
+	 */
+	public FluentRequestBuilder request(final AsyncResponseHandler responseHandler) {
+		return new FluentRequestBuilder(this, responseHandler);
 	}
 	
-	public DefaultAsyncResponse execRequest(final Request request, final DefaultAsyncResponseHandler handler) {
-		final DefaultAsyncResponse dar = new DefaultAsyncResponse(bufferFactory.getBuffer()).handler(handler);
+	
+	
+	/**
+	 * Executes the request 
+	 * @param request the request to execute
+	 * @param handler the async handler
+	 * @return the async response
+	 */
+	public DefaultAsyncResponse execRequest(final Request request, final AsyncResponseHandler handler) {
+		final DefaultAsyncResponse dar = new DefaultAsyncResponse(bufferFactory.getBuffer(), threadPool).handler(handler);
 		final URL requestURL = URLHelper.toURL(request.getUrl());
 		try {
 			httpClient.executeRequest(request, new AsyncHandler<Void>(){

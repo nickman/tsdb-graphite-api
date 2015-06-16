@@ -19,14 +19,14 @@ under the License.
 package com.heliosapm.tsdb.grapi.client.http;
 
 /**
- * <p>Title: DefaultAsyncResponseHandler</p>
+ * <p>Title: AsyncResponseHandler</p>
  * <p>Description: </p> 
  * <p>Company: Helios Development Group LLC</p>
  * @author Whitehead (nwhitehead AT heliosdev DOT org)
- * <p><code>com.heliosapm.tsdb.grapi.client.http.DefaultAsyncResponseHandler</code></p>
+ * <p><code>com.heliosapm.tsdb.grapi.client.http.AsyncResponseHandler</code></p>
  */
 
-public interface DefaultAsyncResponseHandler {
+public interface AsyncResponseHandler {
 	/**
 	 * Handles the response
 	 * @param response The response
