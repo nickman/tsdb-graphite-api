@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.tsdb.grapi;
 
+import org.jboss.netty.handler.codec.http.HttpRequest;
+
 /**
  * <p>Title: GraphiteAdapter</p>
  * <p>Description: Defines an adapter that accepts requests for data from the core plugin service 
@@ -28,7 +30,12 @@ package com.heliosapm.tsdb.grapi;
  */
 
 public interface GraphiteAdapter {
-
+	/**
+	 * Processes the passed query, returning the results as an array of objects
+	 * @param request The Http request
+	 * @return the results
+	 */
+	public Object[] processQuery(HttpRequest request);
 }
 
 
