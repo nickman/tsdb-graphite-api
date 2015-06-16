@@ -83,3 +83,28 @@ Response:
 ]
 
 */
+
+
+/*
+Netty Server sees the request like this:
+
+//290717:26:43,152 EDT [New I/O worker #1] [c.h.t.g.s.h.GraphiteRequestHandler] [INFO ] 
+//	================================================
+//	HTTP Request
+//	================================================
+//		Method:GET
+//		HTTP Version:HTTP/1.1
+//		URI:/metrics/find?query=XXX.YY.Z.*
+//		Headers:
+//			Host:localhost:2907
+//			User-Agent:Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.30 Safari/537.36
+//			Accept:application/json, text/plain, */*
+//			Accept-Encoding:gzip, deflate, sdch
+//			Accept-Language:en-US,en;q=0.8,it;q=0.6
+//			Cookie:grafana_sess=940ce3202cc25423; grafana_user=admin; grafana_remember=09e7c1203f2a4e7724bcb70b1e177d5724d2d9dfe8e7a13e
+//			Referer:http://localhost:3000/dashboard/new?editview=templating
+//			X-Forwarded-For:::1
+//	================================================
+//	
+	
+*/
