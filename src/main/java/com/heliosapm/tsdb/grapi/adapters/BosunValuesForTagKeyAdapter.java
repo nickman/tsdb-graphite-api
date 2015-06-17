@@ -21,6 +21,7 @@ package com.heliosapm.tsdb.grapi.adapters;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,6 +48,7 @@ import com.heliosapm.tsdb.grapi.client.http.AsyncResponseHandler;
 import com.heliosapm.tsdb.grapi.client.http.DefaultAsyncResponse;
 import com.heliosapm.tsdb.grapi.client.http.HttpClient;
 import com.heliosapm.utils.config.ConfigurationHelper;
+import com.heliosapm.utils.lang.StringHelper;
 
 /**
  * <p>Title: BosunValuesForTagKeyAdapter</p>
@@ -61,35 +63,49 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	protected final URL bosunUrl;
 	/** Instance logger */
 	protected final Logger log = LoggerFactory.getLogger(getClass());
-
-	/** If the match challenge starts with this, we take it */
-	protected static final String startsWithMatch = META_URI.toLowerCase();
-	
-	/** The UTF8 character set */
-	public static Charset UTF8 = Charset.forName("UTF8");
-	
-	/** We split the URI on this to get the actual query */
-	protected static final String actualQueryDelim = "?query=";
-	
-	/** The length of the delim */
-	protected static final int delimLength = actualQueryDelim.length();
-	
 	/** The http client */
 	protected final HttpClient client = HttpClient.getInstance();
-	
-	/** The CORS headers value */
-	public static final String CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since";
-	/** The CORS domain value */
-	public static final String CORS_DOMAIN = "*";
-	
+	/** The CORS headers */
+	protected final String corsHeaders;
+	/** The CORS domain */
+	protected final String corsDomain;
+	/** The default maximum numer of items to return to the caller */
+	protected final int defaultMaxItems;
+
+	/** If the match challenge starts with this, we take it */
+	protected static final String startsWithMatch = META_URI.toLowerCase();	
+	/** The UTF8 character set */
+	public static final Charset UTF8 = Charset.forName("UTF8");	
+	/** We split the URI on this to get the actual query */
+	protected static final String actualQueryDelim = "?query=";	
+	/** The length of the delim */
+	protected static final int delimLength = actualQueryDelim.length();
+	/** The default CORS headers value */
+	public static final String DEFAULT_CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since";
+	/** The default CORS domain value */
+	public static final String DEFAULT_CORS_DOMAIN = "*";	
 	/** The pattern of the max items specifier */
 	public static final Pattern MAX_PATTERN = Pattern.compile("/max=(\\d+)", Pattern.CASE_INSENSITIVE);
+	/** The default max items to return to the caller */
+	public static final  int DEFAULT_MAX_ITEMS = 128;
 	
 	/**
 	 * Creates a new BosunValuesForTagKeyAdapter
+	 * @param config The optional configuration properties 
+	 */
+	public BosunValuesForTagKeyAdapter(final Properties config) {
+		bosunUrl = ConfigurationHelper.getURLSystemThenEnvProperty("grapi.bosun.url", "http://localhost:8070", config);
+		corsHeaders = ConfigurationHelper.getSystemThenEnvProperty("grapi.bosun.cors.headers", DEFAULT_CORS_HEADERS, config);
+		corsDomain = ConfigurationHelper.getSystemThenEnvProperty("grapi.bosun.cors.domain", DEFAULT_CORS_DOMAIN, config);
+		defaultMaxItems = ConfigurationHelper.getIntSystemThenEnvProperty("grapi.bosun.maxitems", DEFAULT_MAX_ITEMS, config);
+		log.info(StringHelper.banner("%s Configuration\n\tBosun URL:%s\n\tCORS Headers:%s\n\tCORS Domain:%s\n\tDefault Max Items:%s", getClass().getSimpleName(), bosunUrl, corsHeaders, corsDomain, defaultMaxItems));
+	}
+	
+	/**
+	 * Creates a new BosunValuesForTagKeyAdapter 
 	 */
 	public BosunValuesForTagKeyAdapter() {
-		bosunUrl = ConfigurationHelper.getURLSystemThenEnvProperty("bosun.url", "http://localhost:8070");
+		this(null);
 	}
 	
 	/**
@@ -102,23 +118,6 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 		return queryURI.toLowerCase().startsWith(startsWithMatch);
 	}
 	
-	/*
-	 * /api/metric/{tagk}/{tagv}
-	 * /api/tagv/{tagk}					  also:  /api/tagv/{tagk}/{metric}?{tagkX=tagvX}&.....  
-	 * /api/tagk/{metric}
-   * /api/tagv/{tagk}/{metric}
-   * /api/metadata/get
-   * /api/metadata/metrics
-   * 
-   * Initial Segment:
-   * 	* tagv
-   * 		=tagk
-   * 		=tagk/metric									e.g.  /tagv=disk/os.disk.fs.percent_free
-   * 		=tagk/metric?k1=v1&k2=v2      e.g.  /tagv=disk/os.disk.fs.percent_free?host=<hostname>
-   * 
-   * 
-   */
-	
 	/**
 	 * Creates the bosun query URL for the passed tagv and query 
 	 * @param qkey The key of the query, e.g. <b><code>tagv</code></b>
@@ -126,8 +125,6 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 * @return the URL to query
 	 */
 	protected String getUrlForTagvTagk(final String qkey, final String remainder) {
-		// bosunUrl.toString() + "/api/" + pair[0] + "/" + pair[1]
-		
 		final int qindex = remainder.indexOf('?');
 		final int sindex = remainder.indexOf('/');
 		if(qindex!=-1) {
@@ -153,9 +150,8 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 */
 	@Override
 	public void processQuery(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx) {
-		
 		try {
-			int maxItems = 128;
+			int maxItems = defaultMaxItems;
 			final String uri = URLDecoder.decode(request.getUri(), UTF8.name());
 			final int index = uri.indexOf("?query=");
 			String query = uri.substring(index + delimLength);
@@ -169,14 +165,11 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 			final String remainder = query.substring(eindex+1);			
 			if("tagv".equalsIgnoreCase(qkey)) {
 				final String url = getUrlForTagvTagk(qkey.toLowerCase(), remainder);
-				log.info("Issuing query to bosun: [{}] with max items: [{}]", url, maxItems);
+				log.debug("Issuing query to bosun: [{}] with max items: [{}]", url, maxItems);
 				client.request(newARH(request, channel, ctx, maxItems)).setUrl(url).execute();
 			} else {
 				throw new RuntimeException("First arg [" + qkey + "] not recognized");
 			}
-			
-			//"http://localhost:8070/api/tagv/host"
-			
 		} catch (Exception ex) {
 			log.error("processQuery failed", ex);
 		}
@@ -189,8 +182,8 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 */
 	protected HttpResponse newCORSResponse(final HttpVersion version) {
 		final HttpResponse resp = new DefaultHttpResponse(version, HttpResponseStatus.OK);
-    resp.headers().add("Access-Control-Allow-Origin", CORS_DOMAIN);
-    resp.headers().add("Access-Control-Allow-Headers", CORS_HEADERS);
+    resp.headers().add("Access-Control-Allow-Origin", corsDomain);
+    resp.headers().add("Access-Control-Allow-Headers", corsHeaders);
     resp.headers().add("Content-Type", "application/json");		
     return resp;
 	}
@@ -210,25 +203,13 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 				final JSONObject rez = new JSONObject();
 				rez.put("text", ja.get(i));
 				ra.put(rez);
+				if(i >= maxItems) break;
 			}
-			return ra.toString(1).getBytes(UTF8);
+			return ra.toString().getBytes(UTF8);
 		} catch (Exception ex) {			
 			throw new RuntimeException("Failed to transform query result", ex);
 		}
 	}
-		
-		
-//		[
-//		  {
-//		    "leaf": 0,
-//		    "context": {},
-//		    "text": "cpu-0",
-//		    "expandable": 1,
-//		    "id": "tpmint.cpu-0",
-//		    "allowChildren": 1
-//		  },
-		
-	
 	
 	/**
 	 * Creates a new async response handler to handle the response to the query issued against bosun
@@ -248,7 +229,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 					@Override
 					public void operationComplete(final ChannelFuture f) throws Exception {
 						if(f.isSuccess()) {
-							log.info("Completed Response Write [{}]", fresp);
+							log.debug("Completed Response Write [{}]", fresp);
 						} else {
 							log.error("Response Write Failed", f.getCause());
 						}
@@ -261,8 +242,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 					ctx.sendDownstream(new DownstreamMessageEvent(channel, cf, fresp, channel.getRemoteAddress()));
 				} catch (Exception x) {
 					final HttpResponse resp = new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
-					ctx.sendDownstream(new DownstreamMessageEvent(channel, cf, resp, channel.getRemoteAddress()));
-					
+					ctx.sendDownstream(new DownstreamMessageEvent(channel, cf, resp, channel.getRemoteAddress()));					
 				}
 			}
 		};

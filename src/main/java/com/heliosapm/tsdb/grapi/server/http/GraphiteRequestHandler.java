@@ -32,12 +32,8 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,9 +79,7 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 		if(o!=null && (o instanceof HttpRequest)) {
 			final HttpRequest request = (HttpRequest)o;
 			final Channel channel = e.getChannel();
-			log.info(dumpHttpRequest(request));
-			final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT); 
-			//ctx.sendDownstream(new DownstreamMessageEvent(channel, Channels.future(channel), resp, e.getRemoteAddress()));
+			if(log.isDebugEnabled()) log.debug(dumpHttpRequest(request));
 			adapter.processQuery(request, channel, ctx);
 		} else {
 			super.messageReceived(ctx, e);
