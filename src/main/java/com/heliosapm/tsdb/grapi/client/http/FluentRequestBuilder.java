@@ -98,6 +98,17 @@ public class FluentRequestBuilder extends RequestBuilder {
 		this.responseHandler = responseHandler;
 		return this;
 	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see com.ning.http.client.RequestBuilder#setUrl(java.lang.String)
+	 */
+	@Override
+	public FluentRequestBuilder setUrl(final String url) {
+		super.setUrl(url);
+		return this;
+	}
+
 
 
 //	/**

@@ -64,7 +64,7 @@ public class LetsTestThis implements AsyncResponseHandler {
 	
 	public void run() {
 		FluentRequestBuilder frb = HttpClient.getInstance().request(this);
-		frb.setUrl("http://pdk-pt-cltsdb-01:8070/api/tagv/host");
+		frb.setUrl("http://localhost:8070/api/tagv/host");
 		frb.execute();	
 		waitForResponse();
 		log.info("DONE");

@@ -29,8 +29,6 @@ import java.util.Set;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -41,6 +39,8 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.heliosapm.tsdb.grapi.adapters.BosunValuesForTagKeyAdapter;
 
 /**
  * <p>Title: GraphiteRequestHandler</p>
@@ -54,6 +54,8 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 	/** Instance logger */
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
+	final BosunValuesForTagKeyAdapter adapter = new BosunValuesForTagKeyAdapter();
+	
 	/**
 	 * Creates a new GraphiteRequestHandler
 	 */
@@ -73,9 +75,8 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 			final Channel channel = e.getChannel();
 			log.info(dumpHttpRequest(request));
 			final HttpResponse resp = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NO_CONTENT); 
-			ctx.sendDownstream(new DownstreamMessageEvent(channel, Channels.future(channel), resp, e.getRemoteAddress()));
-			
-			
+			//ctx.sendDownstream(new DownstreamMessageEvent(channel, Channels.future(channel), resp, e.getRemoteAddress()));
+			adapter.processQuery(request, channel, ctx);
 		} else {
 			super.messageReceived(ctx, e);
 		}

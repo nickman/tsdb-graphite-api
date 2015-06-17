@@ -18,6 +18,8 @@ under the License.
  */
 package com.heliosapm.tsdb.grapi;
 
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 /**
@@ -30,13 +32,28 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
  */
 
 public interface GraphiteAdapter {
+	
+	/** Meta graphite query URIs all start with this */
+	public static final String META_URI = "/metrics/find?query=";
+	
 	/**
 	 * Processes the passed query, returning the results as an array of objects
 	 * @param request The Http request
-	 * @return the results
+	 * @param channel The channel to write the response to
+	 * @param ctx The channel handler context
 	 */
-	public Object[] processQuery(HttpRequest request);
+	public void processQuery(HttpRequest request, final Channel channel, final ChannelHandlerContext ctx);
+	
+	/**
+	 * Interrogation from the request handler to determine if this adapter can handle this qery
+	 * @param queryURI The URI of the request
+	 * @return true for a match, false to punt to someone else
+	 */
+	public boolean match(final String queryURI);
+	
 }
+
+
 
 
 /*
@@ -85,8 +102,7 @@ Response:
 */
 
 
-/*
-Netty Server sees the request like this:
+//Netty Server sees the request like this:
 
 //290717:26:43,152 EDT [New I/O worker #1] [c.h.t.g.s.h.GraphiteRequestHandler] [INFO ] 
 //	================================================
@@ -107,4 +123,3 @@ Netty Server sees the request like this:
 //	================================================
 //	
 	
-*/

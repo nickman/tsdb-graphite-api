@@ -150,7 +150,7 @@ public class HttpServer implements ChannelPipelineFactory {
 	 */
 	private HttpServer() {
 		log.info("Starting HTTP Server...");
-		port = ConfigurationHelper.getIntSystemThenEnvProperty("http.port", 80);
+		port = ConfigurationHelper.getIntSystemThenEnvProperty("http.port", 2907);
 		iface = ConfigurationHelper.getSystemThenEnvProperty("http.iface", "0.0.0.0");
 		serverSocket = new InetSocketAddress(iface, port);
 		int cores = Runtime.getRuntime().availableProcessors();
