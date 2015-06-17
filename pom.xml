@@ -114,7 +114,6 @@
             <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
             <version>${netty.version}</version>
-            <scope>provided</scope>
         </dependency>
 
 		<dependency>
@@ -127,28 +126,24 @@
           <groupId>com.google.guava</groupId>
           <artifactId>guava</artifactId>
           <version>${guava.version}</version>
-          <scope>provided</scope>
         </dependency>
 
         <dependency>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
           <version>${slf4j.version}</version>
-          <scope>provided</scope>
         </dependency>
         
         <dependency>
           <groupId>ch.qos.logback</groupId>
           <artifactId>logback-core</artifactId>
           <version>${logback.version}</version>
-          <scope>provided</scope>
         </dependency>
 
         <dependency>
           <groupId>ch.qos.logback</groupId>
           <artifactId>logback-classic</artifactId>
           <version>${logback.version}</version>
-          <scope>provided</scope>
         </dependency>
 
         <dependency>                
@@ -249,6 +244,7 @@
                       <addClasspath>true</addClasspath>
                   </manifest>
                   <manifestEntries>
+                        <Main-Class>com.heliosapm.tsdb.grapi.server.http.HttpServer</Main-Class> 
                         <!--
                                 <Main-Class>org.helios.apmrouter.Agent</Main-Class> 
                                 <Premain-Class>org.helios.apmrouter.Agent</Premain-Class>

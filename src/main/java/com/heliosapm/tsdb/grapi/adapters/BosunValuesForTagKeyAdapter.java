@@ -21,6 +21,8 @@ package com.heliosapm.tsdb.grapi.adapters;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -75,8 +77,13 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	/** The http client */
 	protected final HttpClient client = HttpClient.getInstance();
 	
+	/** The CORS headers value */
 	public static final String CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since";
+	/** The CORS domain value */
 	public static final String CORS_DOMAIN = "*";
+	
+	/** The pattern of the max items specifier */
+	public static final Pattern MAX_PATTERN = Pattern.compile("/max=(\\d+)", Pattern.CASE_INSENSITIVE);
 	
 	/**
 	 * Creates a new BosunValuesForTagKeyAdapter
@@ -110,7 +117,35 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
    * 		=tagk/metric?k1=v1&k2=v2      e.g.  /tagv=disk/os.disk.fs.percent_free?host=<hostname>
    * 
    * 
+   */
+	
+	/**
+	 * Creates the bosun query URL for the passed tagv and query 
+	 * @param qkey The key of the query, e.g. <b><code>tagv</code></b>
+	 * @param remainder The body of the query
+	 * @return the URL to query
 	 */
+	protected String getUrlForTagvTagk(final String qkey, final String remainder) {
+		// bosunUrl.toString() + "/api/" + pair[0] + "/" + pair[1]
+		
+		final int qindex = remainder.indexOf('?');
+		final int sindex = remainder.indexOf('/');
+		if(qindex!=-1) {
+			// we're looking at a tagv=tagk/metric?k1=v1&k2=v2
+			final String tagk =  remainder.substring(0, sindex);
+			final String metric = remainder.substring(sindex+1, qindex);
+			final String kvpairs = remainder.substring(qindex+1);
+			return bosunUrl.toString() + "/api/" + qkey + "/" + tagk + "/" + metric + "?" + kvpairs;
+		}
+		if(sindex==-1) {
+			// we're looking at a tagv=tagk
+			return bosunUrl.toString() + "/api/" + qkey + "/" + remainder;
+		}
+		// we're looking at a tagv=tagk/metric
+		final String tagk =  remainder.substring(0, sindex);
+		final String metric = remainder.substring(sindex+1);
+		return bosunUrl.toString() + "/api/" + qkey + "/" + tagk + "/" + metric;		
+	}
 
 	/**
 	 * {@inheritDoc}
@@ -120,12 +155,28 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	public void processQuery(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx) {
 		
 		try {
+			int maxItems = 128;
 			final String uri = URLDecoder.decode(request.getUri(), UTF8.name());
 			final int index = uri.indexOf("?query=");
-			final String query = uri.substring(index + delimLength);
-			final String[] pair = query.split("=");
+			String query = uri.substring(index + delimLength);
+			final Matcher m = MAX_PATTERN.matcher(query);
+			if(m.find()) {
+				maxItems = Integer.parseInt(m.group(1));
+				query = query.replace("/max=" + maxItems, "");
+			}
+			final int eindex = query.indexOf('=');
+			final String qkey = query.substring(0, eindex);
+			final String remainder = query.substring(eindex+1);			
+			if("tagv".equalsIgnoreCase(qkey)) {
+				final String url = getUrlForTagvTagk(qkey.toLowerCase(), remainder);
+				log.info("Issuing query to bosun: [{}] with max items: [{}]", url, maxItems);
+				client.request(newARH(request, channel, ctx, maxItems)).setUrl(url).execute();
+			} else {
+				throw new RuntimeException("First arg [" + qkey + "] not recognized");
+			}
+			
 			//"http://localhost:8070/api/tagv/host"
-			client.request(newARH(request, channel, ctx)).setUrl(bosunUrl.toString() + "/api/" + pair[0] + "/" + pair[1]).execute();
+			
 		} catch (Exception ex) {
 			log.error("processQuery failed", ex);
 		}
@@ -144,7 +195,13 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
     return resp;
 	}
 	
-	protected byte[] transform(final DefaultAsyncResponse response) {
+	/**
+	 * Transforms the content returned by the client call to Graphite compliant JSON
+	 * @param response The client's async response
+	 * @param maxItems The maximum number of items to return to the caller
+	 * @return the byte content to return to the caller
+	 */
+	protected byte[] transform(final DefaultAsyncResponse response, final int maxItems) {
 		try {
 			final String jsonText = response.getBuffer().toString(UTF8);
 			final JSONArray ja = new JSONArray(jsonText);
@@ -178,9 +235,10 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 * @param request The original http request dispatched to bosun 
 	 * @param channel The channel to respond to the original caller on
 	 * @param ctx The channel's handler context
+	 * @param maxItems The maximum number of items to return to the caller
 	 * @return the new response handler
 	 */
-	protected AsyncResponseHandler newARH(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx) {
+	protected AsyncResponseHandler newARH(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx, final int maxItems) {
 		return new AsyncResponseHandler() {
 			@Override
 			public void onResponse(final DefaultAsyncResponse response) {
@@ -197,7 +255,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 					}
 				});				
 				try {
-					final byte[] content = transform(response);
+					final byte[] content = transform(response, maxItems);
 					fresp.setContent(ChannelBuffers.wrappedBuffer(content));
 					HttpHeaders.setContentLength(fresp, content.length);
 					ctx.sendDownstream(new DownstreamMessageEvent(channel, cf, fresp, channel.getRemoteAddress()));

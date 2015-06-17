@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.ObjectName;
 
@@ -46,7 +47,6 @@ import com.ning.http.client.HttpResponseBodyPart;
 import com.ning.http.client.HttpResponseHeaders;
 import com.ning.http.client.HttpResponseStatus;
 import com.ning.http.client.Request;
-import com.ning.http.client.RequestBuilder;
 import com.ning.http.client.providers.netty.NettyAsyncHttpProviderConfig;
 
 /**
@@ -62,6 +62,9 @@ public class HttpClient {
 	private static volatile HttpClient instance = null;
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
+	
+	/** Flag indicating if the client has been shutdown */
+	private final AtomicBoolean shutdown = new AtomicBoolean(false);
 	
 	/** The http client */
 	protected final AsyncHttpClient httpClient;
@@ -97,6 +100,7 @@ public class HttpClient {
 	 * Creates a new HttpClient
 	 */
 	private HttpClient() {
+		shutdown.set(false);
 		log.info("Building HTTP Client...");
 		int cores = Runtime.getRuntime().availableProcessors();
 		threadPool = new JMXManagedThreadPool(THREADPOOL_OBJECTNAME, "GraphiteAPIThreadPool", cores*2, cores*4, 240, 60000, 100, 99);
@@ -123,10 +127,13 @@ public class HttpClient {
 	 * Stops the AsyncHttpClient
 	 */
 	public void shutdown() {
-		log.info("Stopping HttpClient .....");
-		httpClient.close();
-		threadPool.shutdownNow();
-		log.info("HttpClient stopped.");
+		if(shutdown.compareAndSet(false, true)) {
+			log.info("Stopping HttpClient .....");
+			httpClient.close();
+			threadPool.shutdownNow();
+			log.info("HttpClient stopped.");
+			instance = null;
+		}
 	}
 	
 	/**

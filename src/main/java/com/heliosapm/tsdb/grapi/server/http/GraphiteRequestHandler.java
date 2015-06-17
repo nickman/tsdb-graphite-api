@@ -29,6 +29,7 @@ import java.util.Set;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
@@ -61,6 +62,15 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 	 */
 	public GraphiteRequestHandler() {
 		log.info("Created GraphiteRequestHandler");
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 * @see org.jboss.netty.channel.SimpleChannelUpstreamHandler#exceptionCaught(org.jboss.netty.channel.ChannelHandlerContext, org.jboss.netty.channel.ExceptionEvent)
+	 */
+	@Override
+	public void exceptionCaught(final ChannelHandlerContext ctx, ExceptionEvent ex) throws Exception {
+		log.error("Exception caught in GraphiteRequestHandler", ex.getCause());
 	}
 	
 	/**

@@ -48,7 +48,9 @@ import org.jboss.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.heliosapm.tsdb.grapi.client.http.HttpClient;
 import com.heliosapm.tsdb.grapi.netty.DynamicByteBufferBackedChannelBufferFactory;
+import com.heliosapm.utils.concurrency.ExtendedThreadManager;
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.io.StdInCommandHandler;
 import com.heliosapm.utils.jmx.JMXHelper;
@@ -124,6 +126,7 @@ public class HttpServer implements ChannelPipelineFactory {
 	}
 	
 	public static void main(final String[] args) {
+		System.setProperty("bosun.url", "http://pdk-pt-cltsdb-01:8070");
 		final HttpServer server = getInstance();		
 		StdInCommandHandler.getInstance().registerCommand("down", new Runnable(){
 			public void run() {
@@ -138,6 +141,7 @@ public class HttpServer implements ChannelPipelineFactory {
 			public void operationComplete(final ChannelGroupFuture future) throws Exception {
 				channelFactory.shutdown();
 				log.info("Channel Factory stopped");
+				HttpClient.getInstance().shutdown();				
 				keepAliveThread.interrupt();
 			}
 		});
@@ -150,6 +154,7 @@ public class HttpServer implements ChannelPipelineFactory {
 	 */
 	private HttpServer() {
 		log.info("Starting HTTP Server...");
+		ExtendedThreadManager.install();
 		port = ConfigurationHelper.getIntSystemThenEnvProperty("http.port", 2907);
 		iface = ConfigurationHelper.getSystemThenEnvProperty("http.iface", "0.0.0.0");
 		serverSocket = new InetSocketAddress(iface, port);
@@ -161,6 +166,18 @@ public class HttpServer implements ChannelPipelineFactory {
 		channelFactory = new NioServerSocketChannelFactory(bossPool, workerPool);
 		bootstrap = new ServerBootstrap(channelFactory);
 		bootstrap.setPipelineFactory(this);
+		bootstrap.setOption("bufferFactory", bufferFactory);
+		
+		// ===== Child Channel Options =======
+		bootstrap.setOption("child.tcpNoDelay", true);
+		bootstrap.setOption("child.receiveBufferSize", 1048576);
+		bootstrap.setOption("child.sendBufferSize", 1048576);
+		bootstrap.setOption("child.keepAlive", true);
+		bootstrap.setOption("child.soLinger", false);
+		bootstrap.setOption("child.tcpNoDelay", true);
+		
+		
+		 
 		serverChannel = bootstrap.bind(serverSocket);
 		log.info("Started HTTP Server on [{}]", serverSocket);
 		keepAliveThread = new Thread("KeepAliveThread"){
