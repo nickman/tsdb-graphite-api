@@ -84,10 +84,15 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	public static final String DEFAULT_CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since";
 	/** The default CORS domain value */
 	public static final String DEFAULT_CORS_DOMAIN = "*";	
-	/** The pattern of the max items specifier */
-	public static final Pattern MAX_PATTERN = Pattern.compile("/max=(\\d+)", Pattern.CASE_INSENSITIVE);
 	/** The default max items to return to the caller */
 	public static final  int DEFAULT_MAX_ITEMS = 128;
+
+	
+	/** The pattern of the max items specifier */
+	public static final Pattern MAX_PATTERN = Pattern.compile("/max=(\\d+)", Pattern.CASE_INSENSITIVE);
+	/** The pattern of the filter items specifier */
+	public static final Pattern FILTER_PATTERN = Pattern.compile("/filter=\\[(.*?)\\]", Pattern.CASE_INSENSITIVE);
+
 	
 	/**
 	 * Creates a new BosunValuesForTagKeyAdapter
@@ -152,13 +157,19 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	public void processQuery(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx) {
 		try {
 			int maxItems = defaultMaxItems;
+			Pattern itemFilter = null;
 			final String uri = URLDecoder.decode(request.getUri(), UTF8.name());
 			final int index = uri.indexOf("?query=");
 			String query = uri.substring(index + delimLength);
-			final Matcher m = MAX_PATTERN.matcher(query);
+			final Matcher m = MAX_PATTERN.matcher(query);			
 			if(m.find()) {
 				maxItems = Integer.parseInt(m.group(1));
 				query = query.replace("/max=" + maxItems, "");
+			}
+			final Matcher mf = FILTER_PATTERN.matcher(query);
+			if(mf.find()) {
+				itemFilter = Pattern.compile(mf.group(1));
+				query = query.replace(mf.group(0), "");
 			}
 			final int eindex = query.indexOf('=');
 			final String qkey = query.substring(0, eindex);
@@ -166,7 +177,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 			if("tagv".equalsIgnoreCase(qkey)) {
 				final String url = getUrlForTagvTagk(qkey.toLowerCase(), remainder);
 				log.debug("Issuing query to bosun: [{}] with max items: [{}]", url, maxItems);
-				client.request(newARH(request, channel, ctx, maxItems)).setUrl(url).execute();
+				client.request(newARH(request, channel, ctx, maxItems, itemFilter)).setUrl(url).execute();
 			} else {
 				throw new RuntimeException("First arg [" + qkey + "] not recognized");
 			}
@@ -193,15 +204,20 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 * @param response The client's async response
 	 * @param maxItems The maximum number of items to return to the caller
 	 * @return the byte content to return to the caller
+	 * @param itemFilter An optional pattern to filter in items returned by the bosun query
 	 */
-	protected byte[] transform(final DefaultAsyncResponse response, final int maxItems) {
+	protected byte[] transform(final DefaultAsyncResponse response, final int maxItems, final Pattern itemFilter) {
 		try {
 			final String jsonText = response.getBuffer().toString(UTF8);
 			final JSONArray ja = new JSONArray(jsonText);
 			final JSONArray ra = new JSONArray();
 			for(int i = 0; i < ja.length(); i++) {
 				final JSONObject rez = new JSONObject();
-				rez.put("text", ja.get(i));
+				final String item = ja.getString(i);
+				if(itemFilter!=null && !itemFilter.matcher(item).matches()) {
+					continue;
+				}
+				rez.put("text", item);
 				ra.put(rez);
 				if(i >= maxItems) break;
 			}
@@ -217,9 +233,10 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 * @param channel The channel to respond to the original caller on
 	 * @param ctx The channel's handler context
 	 * @param maxItems The maximum number of items to return to the caller
+	 * @param itemFilter An optional pattern to filter in items returned by the bosun query
 	 * @return the new response handler
 	 */
-	protected AsyncResponseHandler newARH(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx, final int maxItems) {
+	protected AsyncResponseHandler newARH(final HttpRequest request, final Channel channel, final ChannelHandlerContext ctx, final int maxItems, final Pattern itemFilter) {
 		return new AsyncResponseHandler() {
 			@Override
 			public void onResponse(final DefaultAsyncResponse response) {
@@ -236,7 +253,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 					}
 				});				
 				try {
-					final byte[] content = transform(response, maxItems);
+					final byte[] content = transform(response, maxItems, itemFilter);
 					fresp.setContent(ChannelBuffers.wrappedBuffer(content));
 					HttpHeaders.setContentLength(fresp, content.length);
 					ctx.sendDownstream(new DownstreamMessageEvent(channel, cf, fresp, channel.getRemoteAddress()));
