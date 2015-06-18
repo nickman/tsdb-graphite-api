@@ -176,7 +176,7 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 			final String remainder = query.substring(eindex+1);			
 			if("tagv".equalsIgnoreCase(qkey)) {
 				final String url = getUrlForTagvTagk(qkey.toLowerCase(), remainder);
-				log.debug("Issuing query to bosun: [{}] with max items: [{}]", url, maxItems);
+				log.debug("Issuing query to bosun: [{}] with max items: [{}] and filter [{}]", url, maxItems, (itemFilter==null ? "<none>" : itemFilter.pattern()));
 				client.request(newARH(request, channel, ctx, maxItems, itemFilter)).setUrl(url).execute();
 			} else {
 				throw new RuntimeException("First arg [" + qkey + "] not recognized");
@@ -211,15 +211,17 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 			final String jsonText = response.getBuffer().toString(UTF8);
 			final JSONArray ja = new JSONArray(jsonText);
 			final JSONArray ra = new JSONArray();
+			int addedMatches = 0;
 			for(int i = 0; i < ja.length(); i++) {
+				if(addedMatches >= maxItems) break;
 				final JSONObject rez = new JSONObject();
 				final String item = ja.getString(i);
 				if(itemFilter!=null && !itemFilter.matcher(item).matches()) {
 					continue;
 				}
 				rez.put("text", item);
-				ra.put(rez);
-				if(i >= maxItems) break;
+				ra.put(rez);	
+				addedMatches++;
 			}
 			return ra.toString().getBytes(UTF8);
 		} catch (Exception ex) {			

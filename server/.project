@@ -3,6 +3,7 @@
   <name>graphite-api-server</name>
   <comment>Graphite API Gateway (Standalone Server) to support Graphite like functionality for OpenTSDB in Grafana. NO_M2ECLIPSE_SUPPORT: Project files created with the maven-eclipse-plugin are not supported in M2Eclipse.</comment>
   <projects>
+    <project>graphite-api-plugin</project>
     <project>heliosutils</project>
   </projects>
   <buildSpec>
