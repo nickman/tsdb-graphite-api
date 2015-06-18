@@ -1,35 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <artifactId>graphite-api</artifactId>
+    <groupId>com.heliosapm.tsdb</groupId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.heliosapm.tsdb</groupId>
-  <artifactId>graphite-api</artifactId>
-  <name>TSDB-GRAPI</name>
+  <artifactId>graphite-api-server</artifactId>
+  <name>TSDB-GRAPI :: Server</name>
   <version>1.0-SNAPSHOT</version>
-  <description>Graphite API Gateway to support Graphite like functionality for OpenTSDB in Grafana</description>
+  <description>Graphite API Gateway (Standalone Server) to support Graphite like functionality for OpenTSDB in Grafana</description>
   <url>https://github.com/nickman/tsdb-graphite-api</url>
-  <issueManagement>
-    <system>github</system>
-    <url>https://github.com/nickman/tsdb-graphite-api/issues#issue</url>
-  </issueManagement>
-  <developers>
-    <developer>
-      <name>Nicholas Whitehead</name>
-      <email>nwhitehead@heliosdev.org</email>
-      <timezone>-5</timezone>
-    </developer>
-  </developers>
-  <licenses>
-    <license>
-      <name>Apache License 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-  <scm>
-    <connection>scm:git:git://github.com/nickman/tsdb-csf.git</connection>
-    <developerConnection>scm:git:git@github.com:nickman/tsdb-csf.git</developerConnection>
-    <url>http://github.com/nickman/tsdb-csf/</url>
-  </scm>
   <build>
     <plugins>
       <plugin>
@@ -90,14 +72,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <artifactSet>
-                <excludes>
-                  <exclude>META-INF/*.SF</exclude>
-                  <exclude>META-INF/*.DSA</exclude>
-                  <exclude>META-INF/*.RSA</exclude>
-                </excludes>
-                <includes />
-              </artifactSet>
+              <artifactSet />
               <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
               <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
               <includePluginDependencies>false</includePluginDependencies>
@@ -130,46 +105,6 @@
   </profiles>
   <dependencies>
     <dependency>
-      <groupId>net.opentsdb</groupId>
-      <artifactId>opentsdb</artifactId>
-      <version>2.1</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-      <version>2.4.3</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>2.4.3</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.4.3</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-xml</artifactId>
-      <version>2.4.3</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>jackson-module-jaxb-annotations</artifactId>
-          <groupId>com.fasterxml.jackson.module</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>stax2-api</artifactId>
-          <groupId>org.codehaus.woodstox</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>4.12</version>
@@ -192,32 +127,5 @@
       <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
-  <properties>
-    <findbugs.version>3.0.0</findbugs.version>
-    <javadoc-plugin.version>2.9.1</javadoc-plugin.version>
-    <compiler-plugin.version>3.2</compiler-plugin.version>
-    <shade.version>2.1</shade.version>
-    <jar-plugin.version>2.4</jar-plugin.version>
-    <opentsdb.version>2.1</opentsdb.version>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <javassist.version>3.18.2-GA</javassist.version>
-    <junit.version>4.12</junit.version>
-    <netty.version>3.9.4.Final</netty.version>
-    <heliosutils.version>1.0-SNAPSHOT</heliosutils.version>
-    <compiler-target.version>1.6</compiler-target.version>
-    <logback.version>1.0.13</logback.version>
-    <slf4j.version>1.7.7</slf4j.version>
-    <guava.version>17.0</guava.version>
-    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <source-plugin.version>2.4</source-plugin.version>
-    <json.version>20131018</json.version>
-    <high-scale-lib.version>1.1.4</high-scale-lib.version>
-    <ning.version>1.8.14</ning.version>
-    <surefire.version>2.16</surefire.version>
-    <jackson.version>2.4.3</jackson.version>
-    <cobertura.version>2.5.1</cobertura.version>
-    <compiler-source.version>1.6</compiler-source.version>
-    <eclipse-plugin.version>2.9</eclipse-plugin.version>
-  </properties>
 </project>
 

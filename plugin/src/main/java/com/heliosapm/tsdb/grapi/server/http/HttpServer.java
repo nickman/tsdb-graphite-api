@@ -173,7 +173,6 @@ public class HttpServer implements ChannelPipelineFactory {
 		bootstrap.setOption("child.receiveBufferSize", 1048576);
 		bootstrap.setOption("child.sendBufferSize", 1048576);
 		bootstrap.setOption("child.keepAlive", true);
-		bootstrap.setOption("child.soLinger", false);
 		bootstrap.setOption("child.tcpNoDelay", true);
 		
 		
