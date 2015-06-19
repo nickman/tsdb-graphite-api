@@ -25,17 +25,15 @@
 package com.heliosapm.tsdb.grapi.server.http;
 
 import java.net.InetSocketAddress;
+import java.util.Properties;
 
 import javax.management.ObjectName;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.LifeCycleAwareChannelHandler;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.ChannelGroupFuture;
 import org.jboss.netty.channel.group.ChannelGroupFutureListener;
@@ -70,6 +68,8 @@ public class HttpServer implements ChannelPipelineFactory {
 	/** The singleton instance ctor lock */
 	private static final Object lock = new Object();
 	
+	
+	
 	/** The server boss thread pool */
 	protected final JMXManagedThreadPool bossPool;
 	/** The server worker thread pool */
@@ -77,6 +77,9 @@ public class HttpServer implements ChannelPipelineFactory {
 	
 	/** Instance logger */
 	protected final Logger log = LoggerFactory.getLogger(getClass());
+	
+	/** The service configuration */
+	protected final Properties config = new Properties();
 	
 	/** The listening port */
 	protected final int port;
@@ -91,7 +94,7 @@ public class HttpServer implements ChannelPipelineFactory {
 	/** The server channel */
 	protected final Channel serverChannel;
 	/** The graphite request handler */
-	protected final GraphiteRequestHandler graphiteRequestHandler = new GraphiteRequestHandler();
+	protected final GraphiteRequestHandler graphiteRequestHandler;
 	
 	
 	private final Thread keepAliveThread;
@@ -111,23 +114,42 @@ public class HttpServer implements ChannelPipelineFactory {
 	public static final ObjectName WORKER_THREADPOOL_OBJECTNAME = JMXHelper.objectName("com.heliosapm.tsdb.grapi:service=HttpServerThreadPool,type=Worker");
 	
 	/**
-	 * Acquires the HttpClient singleton instance
+	 * Acquires the HttpClient singleton instance.
+	 * This singleton accessor should be called first
+	 * @param config The service configuration
 	 * @return the HttpClient singleton instance
 	 */
-	public static HttpServer getInstance() {
+	public static HttpServer getInstance(final Properties config) {
 		if(instance==null) {
 			synchronized(lock) {
 				if(instance==null) {
-					instance = new HttpServer(); 
+					instance = new HttpServer(config); 
 				}
 			}
 		}
 		return instance;
 	}
 	
+	/**
+	 * Acquires the HttpClient singleton instance.
+	 * This singleton accessor should not be called unti {@link #getInstance(Properties)} has been called.
+	 * @return the HttpClient singleton instance
+	 */
+	public static HttpServer getInstance() {
+		if(instance==null) {
+			synchronized(instance) {
+				if(instance==null) {
+					throw new IllegalStateException("The HttpServer singleton has not been initialized. Please call getInstance(Properties) first");
+				}
+			}
+		}
+		return instance;
+	}
+	
+	
 	public static void main(final String[] args) {
 		System.setProperty("bosun.url", "http://pdk-pt-cltsdb-01:8070");
-		final HttpServer server = getInstance();		
+		final HttpServer server = getInstance(System.getProperties());		
 		StdInCommandHandler.getInstance().registerCommand("down", new Runnable(){
 			public void run() {
 				server.shutdown();
@@ -152,8 +174,12 @@ public class HttpServer implements ChannelPipelineFactory {
 	/**
 	 * Creates a new HttpServer
 	 */
-	private HttpServer() {
+	private HttpServer(final Properties config) {
 		log.info("Starting HTTP Server...");
+		if(config!=null) {
+			this.config.putAll(config);
+		}
+		graphiteRequestHandler = new GraphiteRequestHandler(this.config);
 		ExtendedThreadManager.install();
 		port = ConfigurationHelper.getIntSystemThenEnvProperty("http.port", 2907);
 		iface = ConfigurationHelper.getSystemThenEnvProperty("http.iface", "0.0.0.0");

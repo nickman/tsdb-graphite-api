@@ -24,6 +24,12 @@
  */
 package com.heliosapm.tsdb.grapi.server.http;
 
+import static com.heliosapm.tsdb.grapi.server.http.Constants.DEFAULT_GRAPI_ADAPTERS;
+import static com.heliosapm.tsdb.grapi.server.http.Constants.PROPERTY_GRAPI_ADAPTERS;
+
+import java.lang.reflect.Constructor;
+import java.util.LinkedHashSet;
+import java.util.Properties;
 import java.util.Set;
 
 import org.jboss.netty.channel.Channel;
@@ -37,7 +43,8 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.heliosapm.tsdb.grapi.adapters.BosunValuesForTagKeyAdapter;
+import com.heliosapm.tsdb.grapi.GraphiteAdapter;
+import com.heliosapm.utils.config.ConfigurationHelper;
 
 /**
  * <p>Title: GraphiteRequestHandler</p>
@@ -50,14 +57,29 @@ import com.heliosapm.tsdb.grapi.adapters.BosunValuesForTagKeyAdapter;
 public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 	/** Instance logger */
 	protected final Logger log = LoggerFactory.getLogger(getClass());
-
-	final BosunValuesForTagKeyAdapter adapter = new BosunValuesForTagKeyAdapter();
+	/** A set of configured adapters */
+	protected final Set<GraphiteAdapter> adapters = new LinkedHashSet<GraphiteAdapter>();
 	
+
 	/**
 	 * Creates a new GraphiteRequestHandler
+	 * @param config The service configuration
 	 */
-	public GraphiteRequestHandler() {
+	public GraphiteRequestHandler(final Properties config) {
 		log.info("Created GraphiteRequestHandler");
+		final String[] adapters = ConfigurationHelper.getArraySystemThenEnvProperty(PROPERTY_GRAPI_ADAPTERS, DEFAULT_GRAPI_ADAPTERS, config);
+		for(String adapter: adapters) {
+			try {
+				@SuppressWarnings("unchecked")
+				Class<? extends GraphiteAdapter> aclazz = (Class<? extends GraphiteAdapter>) Class.forName(adapter, true, getClass().getClassLoader());
+				Constructor<? extends GraphiteAdapter> ctor = aclazz.getDeclaredConstructor(Properties.class);
+				GraphiteAdapter ga = ctor.newInstance(config);
+				this.adapters.add(ga);
+				log.info("Created and configured GraphiteAdapter [{}]", adapter);
+			} catch (Exception ex) {
+				log.error("Failed to create configured adapter [{}]", adapter, ex);
+			}
+		}
 	}
 	
 	/**
@@ -67,6 +89,14 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 	@Override
 	public void exceptionCaught(final ChannelHandlerContext ctx, ExceptionEvent ex) throws Exception {
 		log.error("Exception caught in GraphiteRequestHandler", ex.getCause());
+	}
+	
+	protected GraphiteAdapter findMatch(final String uri) {
+		if(uri==null || uri.trim().isEmpty()) return null;
+		for(GraphiteAdapter ga: adapters) {
+			if(ga.match(uri)) return ga;
+		}
+		return null;
 	}
 	
 	/**
@@ -80,7 +110,7 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 			final HttpRequest request = (HttpRequest)o;
 			final Channel channel = e.getChannel();
 			if(log.isDebugEnabled()) log.debug(dumpHttpRequest(request));
-			adapter.processQuery(request, channel, ctx);
+//			adapter.processQuery(request, channel, ctx);
 		} else {
 			super.messageReceived(ctx, e);
 		}

@@ -49,6 +49,7 @@ import com.heliosapm.tsdb.grapi.client.http.DefaultAsyncResponse;
 import com.heliosapm.tsdb.grapi.client.http.HttpClient;
 import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.lang.StringHelper;
+import static com.heliosapm.tsdb.grapi.server.http.Constants.*;
 
 /**
  * <p>Title: BosunValuesForTagKeyAdapter</p>
@@ -73,19 +74,13 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	protected final int defaultMaxItems;
 
 	/** If the match challenge starts with this, we take it */
-	protected static final String startsWithMatch = META_URI.toLowerCase();	
+	protected static final String startsWithMatch = META_URI.toLowerCase() + "tagv=";	
 	/** The UTF8 character set */
 	public static final Charset UTF8 = Charset.forName("UTF8");	
 	/** We split the URI on this to get the actual query */
 	protected static final String actualQueryDelim = "?query=";	
 	/** The length of the delim */
 	protected static final int delimLength = actualQueryDelim.length();
-	/** The default CORS headers value */
-	public static final String DEFAULT_CORS_HEADERS = "Authorization, Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since";
-	/** The default CORS domain value */
-	public static final String DEFAULT_CORS_DOMAIN = "*";	
-	/** The default max items to return to the caller */
-	public static final  int DEFAULT_MAX_ITEMS = 128;
 
 	
 	/** The pattern of the max items specifier */
@@ -99,10 +94,10 @@ public class BosunValuesForTagKeyAdapter implements GraphiteAdapter {
 	 * @param config The optional configuration properties 
 	 */
 	public BosunValuesForTagKeyAdapter(final Properties config) {
-		bosunUrl = ConfigurationHelper.getURLSystemThenEnvProperty("grapi.bosun.url", "http://localhost:8070", config);
-		corsHeaders = ConfigurationHelper.getSystemThenEnvProperty("grapi.bosun.cors.headers", DEFAULT_CORS_HEADERS, config);
-		corsDomain = ConfigurationHelper.getSystemThenEnvProperty("grapi.bosun.cors.domain", DEFAULT_CORS_DOMAIN, config);
-		defaultMaxItems = ConfigurationHelper.getIntSystemThenEnvProperty("grapi.bosun.maxitems", DEFAULT_MAX_ITEMS, config);
+		bosunUrl = ConfigurationHelper.getURLSystemThenEnvProperty(PROPERTY_BOSUN_URL, DEFAULT_BOSUN_URL, config);
+		corsHeaders = ConfigurationHelper.getSystemThenEnvProperty(PROPERTY_BOSUN_CORS_HEADERS, DEFAULT_BOSUN_CORS_HEADERS, config);
+		corsDomain = ConfigurationHelper.getSystemThenEnvProperty(PROPERTY_BOSUN_CORS_DOMAIN, DEFAULT_BOSUN_CORS_DOMAIN, config);
+		defaultMaxItems = ConfigurationHelper.getIntSystemThenEnvProperty(PROPERTY_BOSUN_MAXITEMS, DEFAULT_BOSUN_MAXITEMS, config);
 		log.info(StringHelper.banner("%s Configuration\n\tBosun URL:%s\n\tCORS Headers:%s\n\tCORS Domain:%s\n\tDefault Max Items:%s", getClass().getSimpleName(), bosunUrl, corsHeaders, corsDomain, defaultMaxItems));
 	}
 	

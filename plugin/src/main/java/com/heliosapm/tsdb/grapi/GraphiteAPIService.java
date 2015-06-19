@@ -18,6 +18,9 @@ under the License.
  */
 package com.heliosapm.tsdb.grapi;
 
+import java.util.Map;
+import java.util.Properties;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.tsd.RpcPlugin;
@@ -60,7 +63,13 @@ public class GraphiteAPIService extends RpcPlugin {
 	public void initialize(final TSDB tsdb) {
 		this.tsdb = tsdb;
 		config = tsdb.getConfig();
-		
+		final Properties p = new Properties();
+		for(Map.Entry<String, String> entry : config.getMap().entrySet()) {
+			final String key = entry.getKey();
+			if(key.startsWith("grapi.")) {
+				p.put(key, entry.getValue().trim());
+			}
+		}
 		log.info("GraphiteAPIService RpcPlugin Instance Initialized");
 	}
 
