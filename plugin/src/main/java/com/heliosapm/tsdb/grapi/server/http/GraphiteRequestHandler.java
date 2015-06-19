@@ -35,16 +35,21 @@ import java.util.Set;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.heliosapm.tsdb.grapi.GraphiteAdapter;
 import com.heliosapm.utils.config.ConfigurationHelper;
+import com.heliosapm.utils.lang.StringHelper;
 
 /**
  * <p>Title: GraphiteRequestHandler</p>
@@ -68,6 +73,7 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 	public GraphiteRequestHandler(final Properties config) {
 		log.info("Created GraphiteRequestHandler");
 		final String[] adapters = ConfigurationHelper.getArraySystemThenEnvProperty(PROPERTY_GRAPI_ADAPTERS, DEFAULT_GRAPI_ADAPTERS, config);
+		final StringBuilder b = new StringBuilder();
 		for(String adapter: adapters) {
 			try {
 				@SuppressWarnings("unchecked")
@@ -76,10 +82,12 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 				GraphiteAdapter ga = ctor.newInstance(config);
 				this.adapters.add(ga);
 				log.info("Created and configured GraphiteAdapter [{}]", adapter);
+				b.append("\n\t\t").append(aclazz.getSimpleName());
 			} catch (Exception ex) {
 				log.error("Failed to create configured adapter [{}]", adapter, ex);
 			}
 		}
+		log.info(StringHelper.banner("Graphite Request HandlerConfiguration\n\tAdapters:%s", b.toString()));
 	}
 	
 	/**
@@ -91,6 +99,11 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 		log.error("Exception caught in GraphiteRequestHandler", ex.getCause());
 	}
 	
+	/**
+	 * Returns the first registered GraphiteAdapter that matches the passed URI
+	 * @param uri The requested URI
+	 * @return The first matching GraphiteAdapter or null if one was not found
+	 */
 	protected GraphiteAdapter findMatch(final String uri) {
 		if(uri==null || uri.trim().isEmpty()) return null;
 		for(GraphiteAdapter ga: adapters) {
@@ -110,7 +123,12 @@ public class GraphiteRequestHandler extends SimpleChannelUpstreamHandler {
 			final HttpRequest request = (HttpRequest)o;
 			final Channel channel = e.getChannel();
 			if(log.isDebugEnabled()) log.debug(dumpHttpRequest(request));
-//			adapter.processQuery(request, channel, ctx);
+			final GraphiteAdapter ga = findMatch(request.getUri());
+			if(ga==null) {
+				ctx.sendDownstream(new DownstreamMessageEvent(channel, Channels.future(channel), new DefaultHttpResponse(request.getProtocolVersion(), HttpResponseStatus.NOT_FOUND), e.getRemoteAddress()));
+			} else {
+				ga.processQuery(request, channel, ctx);
+			}
 		} else {
 			super.messageReceived(ctx, e);
 		}
