@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Deferred;
+import com.heliosapm.tsdb.grapi.server.http.HttpServer;
 
 /**
  * <p>Title: GraphiteAPIService</p>
@@ -70,6 +71,7 @@ public class GraphiteAPIService extends RpcPlugin {
 				p.put(key, entry.getValue().trim());
 			}
 		}
+		HttpServer.getInstance(p);
 		log.info("GraphiteAPIService RpcPlugin Instance Initialized");
 	}
 
