@@ -19,6 +19,7 @@ under the License.
 package com.heliosapm.tsdb.grapi.server.http;
 
 
+
 /**
  * <p>Title: Constants</p>
  * <p>Description: Defines the configuration property keys and default values</p> 
@@ -28,6 +29,14 @@ package com.heliosapm.tsdb.grapi.server.http;
  */
 
 public class Constants {
+	/** Configuration property key: The graphite emulating http listening port */
+	public static final String PROPERTY_HTTP_LISTEN_PORT = "grapi.http.port";
+	/** Configuration default: The http listening port */
+	public static final int DEFAULT_HTTP_LISTEN_PORT = 2907;
+	/** Configuration property key: The graphite emulating http listening iface */
+	public static final String PROPERTY_HTTP_LISTEN_IFACE = "grapi.http.iface";
+	/** Configuration default: The http listening iface */
+	public static final String DEFAULT_HTTP_LISTEN_IFACE = "0.0.0.0";
 	/** Configuration property key: The URL of the bosun service that will handle bosun queries */
 	public static final String PROPERTY_BOSUN_URL = "grapi.bosun.url";
 	/** Configuration default: The default Bosun URL */

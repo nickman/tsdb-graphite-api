@@ -53,6 +53,7 @@ import com.heliosapm.utils.config.ConfigurationHelper;
 import com.heliosapm.utils.io.StdInCommandHandler;
 import com.heliosapm.utils.jmx.JMXHelper;
 import com.heliosapm.utils.jmx.JMXManagedThreadPool;
+import static com.heliosapm.tsdb.grapi.server.http.Constants.*;
 
 /**
  * <p>Title: HttpServer</p>
@@ -181,8 +182,8 @@ public class HttpServer implements ChannelPipelineFactory {
 		}
 		graphiteRequestHandler = new GraphiteRequestHandler(this.config);
 		ExtendedThreadManager.install();
-		port = ConfigurationHelper.getIntSystemThenEnvProperty("http.port", 2907);
-		iface = ConfigurationHelper.getSystemThenEnvProperty("http.iface", "0.0.0.0");
+		port = ConfigurationHelper.getIntSystemThenEnvProperty(PROPERTY_HTTP_LISTEN_PORT, DEFAULT_HTTP_LISTEN_PORT);
+		iface = ConfigurationHelper.getSystemThenEnvProperty(PROPERTY_HTTP_LISTEN_IFACE, DEFAULT_HTTP_LISTEN_IFACE);
 		serverSocket = new InetSocketAddress(iface, port);
 		int cores = Runtime.getRuntime().availableProcessors();
 		bossPool = new JMXManagedThreadPool(BOSS_THREADPOOL_OBJECTNAME, "ServerBossThreadPool", cores*2, cores*4, 240, 60000, 100, 99);
